@@ -84,7 +84,7 @@ def get_agent_config(model_type):
         }
     elif model_type == 'qwen-2-vl-7b':
         agent_config = {
-            "model_type": "Qwen/Qwen2-VL-7B-Instruct",
+            "model_type": "qwen/Qwen2-VL-7B-Instruct",
             "model_platform": ModelPlatformType.VLLM,
             "model_config": VLLMConfig().as_dict(),
             "url": 'http://localhost:8000/v1',
@@ -132,14 +132,14 @@ def get_agent_config(model_type):
         }
     elif model_type == 'vllm_qwen_vl':
         agent_config = {
-            "model_type": "Qwen/Qwen2.5-VL-7B-Instruct",
+            "model_type": "qwen/Qwen2.5-VL-7B-Instruct",
             "model_platform": ModelPlatformType.VLLM,
             "model_config": VLLMConfig().as_dict(),
-            "url": 'http://localhost:7000/v1'
+            "url": 'http://localhost:8000/v1'
         }
     elif model_type == 'vllm_qwen':
         agent_config = {
-            "model_type": "Qwen/Qwen2.5-7B-Instruct",
+            "model_type": "qwen/Qwen2.5-7B-Instruct",
             "model_platform": ModelPlatformType.VLLM,
             "model_config": VLLMConfig().as_dict(),
             "url": 'http://localhost:8000/v1',
