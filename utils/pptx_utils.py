@@ -8,6 +8,12 @@ from pptx.oxml.xmlchemy import OxmlElement
 from pptx.oxml.ns import qn
 import json
 
+DEFAULT_FONTS_BY_LANGUAGE = {
+    "en": "Arial",
+    "ja": "MS Mincho",  # Default Japanese font
+    "default": "Arial"  # Fallback
+}
+
 add_border_label_function = r'''
 from pptx.enum.shapes import MSO_SHAPE_TYPE, MSO_SHAPE, MSO_AUTO_SHAPE_TYPE
 from pptx.util import Inches, Pt
@@ -317,7 +323,8 @@ def add_textbox(
     italic=False,
     alignment="left",
     fill_color=None,
-    font_name="Arial"
+    font_name: str = None,
+    lang: str = None
 ):
     """
     Create a textbox shape on the given slide, optionally fill its background with
@@ -376,7 +383,14 @@ def add_textbox(
     font.size = _parse_font_size(font_size)
     font.bold = bold
     font.italic = italic
-    font.name = font_name
+
+    actual_font_name = font_name
+    if actual_font_name is None: # If no specific font_name was passed by the caller
+        if lang and lang in DEFAULT_FONTS_BY_LANGUAGE:
+            actual_font_name = DEFAULT_FONTS_BY_LANGUAGE[lang]
+        else:
+            actual_font_name = DEFAULT_FONTS_BY_LANGUAGE["default"]
+    font.name = actual_font_name
     
     return shape
 
@@ -389,7 +403,8 @@ def edit_textbox(
     italic=None,
     alignment=None,
     fill_color=None,
-    font_name=None
+    font_name=None,
+    lang: str = None
 ):
     """
     Edit properties of an existing textbox shape.
@@ -452,8 +467,20 @@ def edit_textbox(
                     font.bold = bold
                 if italic is not None:
                     font.italic = italic
-                if font_name is not None:
+
+                # effective_font_name = font_name # User-specified font_name from parameters
+                # if effective_font_name is None: # If user didn't specify one in this call
+                #     if lang and lang in DEFAULT_FONTS_BY_LANGUAGE:
+                #         effective_font_name = DEFAULT_FONTS_BY_LANGUAGE[lang]
+                # if effective_font_name is not None:
+                #     font.name = effective_font_name
+
+                if font_name is not None: # If font_name was explicitly passed
                     font.name = font_name
+                elif lang and lang in DEFAULT_FONTS_BY_LANGUAGE: # Else if lang is given and maps
+                    font.name = DEFAULT_FONTS_BY_LANGUAGE[lang]
+                # If neither font_name nor a mappable lang is provided, font.name remains unchanged.
+
 
 def add_image(slide, name, left_inch, top_inch, width_inch, height_inch, image_path):
     """
@@ -639,7 +666,7 @@ def _set_run_font_color(run, rgb_tuple):
     solid_fill.append(srgb_clr)
     rPr.append(solid_fill)
 
-def set_text_style(shape, font_size=None, bold=None, italic=None, alignment=None, color=None, font_name=None):
+def set_text_style(shape, font_size=None, bold=None, italic=None, alignment=None, color=None, font_name=None, lang: str = None):
     """
     Adjust text style on an existing textbox shape.
     
@@ -680,8 +707,16 @@ def set_text_style(shape, font_size=None, bold=None, italic=None, alignment=None
                 run.font.italic = italic
 
             # Font name
-            if font_name is not None:
-                run.font.name = font_name
+            effective_font_name = font_name # User-specified takes precedence
+            if effective_font_name is None: # If no specific font_name was passed for this call
+                if lang and lang in DEFAULT_FONTS_BY_LANGUAGE:
+                    effective_font_name = DEFAULT_FONTS_BY_LANGUAGE[lang]
+                # If still None (no specific font_name, no lang, or lang not in map),
+                # it will not change the font unless a default like Arial is enforced here.
+                # Let's only set if a font is determined.
+
+            if effective_font_name is not None:
+                run.font.name = effective_font_name
             
             # Color
             if color is not None:
@@ -755,7 +790,7 @@ def style_shape_border(shape, color=(30, 144, 255), thickness=2, line_style="squ
     dash_style_enum = dash_style_map.get(line_style.lower(), MSO_LINE_DASH_STYLE.SOLID)
     line.dash_style = dash_style_enum
 
-def fill_textframe(shape, paragraphs_spec):
+def fill_textframe(shape, paragraphs_spec, lang: str = None):
     """
     Given an existing shape (with a text frame) and a paragraphs_spec
     describing paragraphs and runs, populate the shape’s text frame.
@@ -815,6 +850,17 @@ def fill_textframe(shape, paragraphs_spec):
             font = run.font
             font.bold = run_info.get("bold", False)
             font.italic = run_info.get("italic", False)
+
+            run_font_name = run_info.get("font_name") # Check if font_name is in run_info
+            if run_font_name is None: # If not specified in run_info
+                if lang and lang in DEFAULT_FONTS_BY_LANGUAGE:
+                    run_font_name = DEFAULT_FONTS_BY_LANGUAGE[lang]
+                else:
+                    # Fallback to a general default if no lang-specific one or if run_info had nothing
+                    run_font_name = DEFAULT_FONTS_BY_LANGUAGE["default"]
+
+            if run_font_name: # Ensure it's not None before setting
+                font.name = run_font_name
 
             # If run-specific color was provided
             color_tuple = run_info.get("color", None)

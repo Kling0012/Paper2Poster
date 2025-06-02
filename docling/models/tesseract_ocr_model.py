@@ -57,6 +57,22 @@ class TesseractOcrModel(BaseOcrModel):
             _log.debug("Initializing TesserOCR: %s", tesseract_version)
             lang = "+".join(self.options.lang)
 
+            if lang != "auto":
+                for lg in self.options.lang:
+                    if lg in ("jpn", "jpn_vert"):
+                        # Check if the language or its script prefixed version is available
+                        lang_available = lg in self._tesserocr_languages
+                        if self.script_prefix:
+                            lang_available = lang_available or f"{self.script_prefix}{lg}" in self._tesserocr_languages
+
+                        if not lang_available:
+                            _log.warning(
+                                f"The requested Tesseract language '{lg}' for Japanese is not installed. "
+                                f"Please install the appropriate Tesseract language data (e.g., 'jpn.traineddata', 'jpn_vert.traineddata'). "
+                                f"You can usually find installation instructions at https://tesseract-ocr.github.io/tessdoc/Data-Files.html "
+                                f"or by searching for 'install tesseract language packs' for your operating system."
+                            )
+
             self.script_readers: dict[str, tesserocr.PyTessBaseAPI] = {}
 
             if any([l.startswith("script/") for l in self._tesserocr_languages]):
@@ -129,23 +145,40 @@ class TesseractOcrModel(BaseOcrModel):
                             if osd is None:
                                 continue
 
-                            script = osd["script_name"]
-                            script = map_tesseract_script(script)
-                            lang = f"{self.script_prefix}{script}"
+                            osd_script_name = osd["script_name"]
+                            script = map_tesseract_script(osd["script_name"])
 
-                            # Check if the detected languge is present in the system
-                            if lang not in self._tesserocr_languages:
-                                msg = f"Tesseract detected the script '{script}' and language '{lang}'."
-                                msg += " However this language is not installed in your system and will be ignored."
+                            tess_lang_to_use = f"{self.script_prefix}{script}"
+                            tess_lang_to_use_vert = None
+
+                            if script == "Japanese" and osd.get("orientation_degrees") is not None:
+                                if osd["orientation_degrees"] == 90 or osd["orientation_degrees"] == 270:
+                                    # Check for vertical script names
+                                    possible_vert_names = [f"{self.script_prefix}Japanese_vert", f"{self.script_prefix}jpn_vert"]
+                                    for vert_name in possible_vert_names:
+                                        if vert_name in self._tesserocr_languages:
+                                            tess_lang_to_use_vert = vert_name
+                                            tess_lang_to_use = vert_name  # Prioritize vertical if found
+                                            break
+
+                            lang_to_check = tess_lang_to_use_vert if tess_lang_to_use_vert else tess_lang_to_use
+
+                            # Check if the detected language is present in the system
+                            if lang_to_check not in self._tesserocr_languages:
+                                msg = f"Tesseract OSD detected script '{osd_script_name}' (mapped to '{script}')."
+                                if tess_lang_to_use_vert:
+                                    msg += f" Orientation suggested vertical text, attempted to use '{tess_lang_to_use_vert}'."
+                                msg += f" However, the required Tesseract language '{lang_to_check}' (or its vertical variant) is not installed or found in {self._tesserocr_languages}."
+                                msg += " Please install the appropriate Tesseract language data (e.g., 'jpn.traineddata', 'jpn_vert.traineddata' for Japanese). You can usually find installation instructions at https://tesseract-ocr.github.io/tessdoc/Data-Files.html or by searching for 'install tesseract language packs' for your operating system. The script will be ignored for OCR."
                                 _log.warning(msg)
                             else:
-                                if script not in self.script_readers:
+                                if script not in self.script_readers or (tess_lang_to_use_vert and self.script_readers.get(script) and self.script_readers[script].GetLanguage() != tess_lang_to_use_vert) : # Re-init if orientation changed
                                     import tesserocr
 
                                     self.script_readers[script] = (
                                         tesserocr.PyTessBaseAPI(
                                             path=self.reader.GetDatapath(),
-                                            lang=lang,
+                                            lang=tess_lang_to_use, # Use the determined language (could be vertical)
                                             psm=tesserocr.PSM.AUTO,
                                             init=True,
                                             oem=tesserocr.OEM.DEFAULT,

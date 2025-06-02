@@ -85,7 +85,8 @@ class EasyOcrModel(BaseOcrModel):
     @staticmethod
     def download_models(
         detection_models: List[str] = ["craft"],
-        recognition_models: List[str] = ["english_g2", "latin_g2"],
+        # japanese_g2 is for Japanese support.
+        recognition_models: List[str] = ["english_g2", "latin_g2", "japanese_g2"],
         local_dir: Optional[Path] = None,
         force: bool = False,
         progress: bool = False,
