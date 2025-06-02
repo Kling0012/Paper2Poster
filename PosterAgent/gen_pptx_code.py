@@ -25,7 +25,7 @@ save_presentation({presentation_object_name}, file_name="{output_file}")
 '''
     return code
 
-def generate_panel_code(panel_dict, utils_functions, slide_object_name, visible=False, theme=None):
+def generate_panel_code(panel_dict, utils_functions, slide_object_name, visible=False, theme=None, lang: str = None):
     code = utils_functions
     raw_name = panel_dict["panel_name"]
     var_name = 'var_' + sanitize_for_var(raw_name)
@@ -46,7 +46,8 @@ def generate_panel_code(panel_dict, utils_functions, slide_object_name, visible=
     italic=False,
     alignment="left",
     fill_color=None,
-    font_name="Arial"
+    font_name=None,
+    lang=lang
 )
 '''
 
@@ -72,6 +73,7 @@ def generate_textbox_code(
     content=None, 
     theme=None,
     tmp_dir='tmp',
+    lang: str = None,
 ):
     code = utils_functions
     raw_name = text_dict["textbox_name"]
@@ -93,7 +95,8 @@ def generate_textbox_code(
     italic=False,
     alignment="left",
     fill_color=None,
-    font_name="Arial"
+    font_name=None,
+    lang=lang
 )
 '''
     if visible:
@@ -111,9 +114,8 @@ style_shape_border({var_name}, color={theme['color']}, thickness={theme['thickne
     if content is not None:
         tmp_name = f'{tmp_dir}/{var_name}_content.json'
         json.dump(content, open(tmp_name, 'w'), indent=4)
-        code += fr'''
-fill_textframe({var_name}, json.load(open('{tmp_name}', 'r')))
-'''
+        lang_for_code = f"'{lang}'" if lang else "None"
+        code += fr'''fill_textframe({var_name}, json.load(open('{tmp_name}', 'r')), lang={lang_for_code})'''
     
     return code
 
@@ -165,6 +167,7 @@ def generate_poster_code(
     check_overflow=False,
     theme=None,
     tmp_dir='tmp',
+    paper_language: str = None,
 ):
     code = ''
     code += initialize_poster_code(slide_width, slide_height, slide_object_name, presentation_object_name, utils_functions)
@@ -184,11 +187,11 @@ def generate_poster_code(
         figure_theme = theme['figure_theme']
 
     for p in panel_arrangement_list:
-        code += generate_panel_code(p, '', slide_object_name, panel_visible, panel_theme)
+        code += generate_panel_code(p, '', slide_object_name, panel_visible, panel_theme, lang=paper_language)
 
     if check_overflow:
         t = text_arrangement_list[0]
-        code += generate_textbox_code(t, '', slide_object_name, textbox_visible, content, textbox_theme, tmp_dir)
+        code += generate_textbox_code(t, '', slide_object_name, textbox_visible, content, textbox_theme, tmp_dir, lang=paper_language)
     else:
         all_content = []
         if content is not None:
@@ -209,7 +212,7 @@ def generate_poster_code(
                 textbox_content = all_content[i]
             else:
                 textbox_content = None
-            code += generate_textbox_code(t, '', slide_object_name, textbox_visible, textbox_content, textbox_theme, tmp_dir)
+            code += generate_textbox_code(t, '', slide_object_name, textbox_visible, textbox_content, textbox_theme, tmp_dir, lang=paper_language)
 
     for f in figure_arrangement_list:
         if img_path is None:

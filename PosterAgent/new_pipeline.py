@@ -43,6 +43,7 @@ if __name__ == '__main__':
     parser.add_argument('--ablation_no_tree_layout', action='store_true', help='Ablation study: no tree layout')
     parser.add_argument('--ablation_no_commenter', action='store_true', help='Ablation study: no commenter')
     parser.add_argument('--ablation_no_example', action='store_true', help='Ablation study: no example')
+    parser.add_argument('--lang', type=str, default=None, help='Language of the paper (e.g., "en", "ja") for font selection in generated PPTX.')
 
     args = parser.parse_args()
 
@@ -236,6 +237,7 @@ if __name__ == '__main__':
         content=bullet_content,
         theme=theme,
         tmp_dir=args.tmp_dir,
+        paper_language=args.lang
     )
 
     output, err = run_code(poster_code)

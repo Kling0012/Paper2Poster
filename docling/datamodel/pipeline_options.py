@@ -130,7 +130,7 @@ class EasyOcrOptions(OcrOptions):
     """Options for the EasyOCR engine."""
 
     kind: Literal["easyocr"] = "easyocr"
-    lang: List[str] = ["fr", "de", "es", "en"]
+    lang: List[str] = ["fr", "de", "es", "en", "ja"]
 
     use_gpu: Optional[bool] = None
 
